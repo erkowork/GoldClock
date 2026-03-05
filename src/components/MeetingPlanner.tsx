@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { DateTime } from 'luxon';
 import { formatTime } from '../utils/timezone';
-import { Users, Clock, Globe } from 'lucide-react';
+import { Users, Clock, Globe, Sun, Moon, Sunrise, Sunset, Calendar, Share2 } from 'lucide-react';
 import { translations } from '../utils/translations';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 
 export default function MeetingPlanner() {
   const { favorites, use24HourFormat, language } = useAppStore();
@@ -16,13 +16,56 @@ export default function MeetingPlanner() {
     setBaseTime(baseTime.set({ hour: hours, minute: minutes }));
   };
 
-  const getTimeColor = (hour: number) => {
-    if (hour >= 9 && hour <= 17) return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
-    if (hour >= 7 && hour < 9 || hour > 17 && hour <= 21) return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
-    return 'bg-rose-500/10 text-rose-600 border-rose-500/20';
+  const getStatusInfo = (hour: number) => {
+    if (hour >= 9 && hour <= 17) return { 
+      label: t.good, 
+      color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+      icon: <Sun className="w-4 h-4" />
+    };
+    if (hour >= 7 && hour < 9) return { 
+      label: t.okay, 
+      color: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+      icon: <Sunrise className="w-4 h-4" />
+    };
+    if (hour > 17 && hour <= 21) return { 
+      label: t.okay, 
+      color: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+      icon: <Sunset className="w-4 h-4" />
+    };
+    return { 
+      label: t.night, 
+      color: 'bg-rose-500/10 text-rose-600 border-rose-500/20',
+      icon: <Moon className="w-4 h-4" />
+    };
   };
 
   const zones = ['Europe/Berlin', ...favorites.filter(f => f !== 'Europe/Berlin')];
+
+  const generateCalendarLink = (type: 'google' | 'outlook' | 'apple', time: DateTime, zone: string) => {
+    const title = encodeURIComponent('Global Meeting');
+    const start = time.toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'");
+    const end = time.plus({ hours: 1 }).toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'");
+    
+    if (type === 'google') {
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=Meeting%20scheduled%20via%20GoldClock%20in%20${zone}`;
+    }
+    if (type === 'outlook') {
+      return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${title}&startdt=${time.toUTC().toISO()}&enddt=${time.plus({ hours: 1 }).toUTC().toISO()}&body=Meeting%20scheduled%20via%20GoldClock%20in%20${zone}`;
+    }
+    // For Apple/ICS
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+BEGIN:VEVENT
+DTSTART:${start}
+DTEND:${end}
+SUMMARY:Global Meeting
+DESCRIPTION:Meeting scheduled via GoldClock in ${zone}
+END:VEVENT
+END:VCALENDAR`;
+    return `data:text/calendar;charset=utf8,${encodeURIComponent(icsContent)}`;
+  };
+
+  const [activeExport, setActiveExport] = useState<string | null>(null);
 
   return (
     <div className="w-full max-w-6xl mx-auto px-4">
@@ -32,7 +75,9 @@ export default function MeetingPlanner() {
             <Users className="w-10 h-10 text-accent-color" />
             {t.globalMeetingFinder}
           </h2>
-          <p className="text-text-secondary font-medium">Coordinate across borders with ease</p>
+          <p className="text-text-secondary font-medium">
+            {t.meetingPlannerSubtitle}
+          </p>
         </div>
         
         <div className="glass-panel p-4 rounded-3xl flex items-center gap-4 border-2 border-accent-color/20">
@@ -65,7 +110,7 @@ export default function MeetingPlanner() {
           {zones.map((tz, index) => {
             const timeInZone = baseTime.setZone(tz);
             const hour = timeInZone.hour;
-            const colorClass = getTimeColor(hour);
+            const status = getStatusInfo(hour);
             
             return (
               <motion.div 
@@ -94,10 +139,60 @@ export default function MeetingPlanner() {
                   </span>
                 </div>
                 
-                <div className="flex justify-center">
-                  <div className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border ${colorClass} shadow-sm`}>
-                    {hour >= 9 && hour <= 17 ? t.good : hour >= 7 && hour <= 21 ? t.okay : t.night}
+                <div className="flex justify-center relative">
+                  <div className="flex items-center gap-3">
+                    <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border ${status.color} shadow-sm`}>
+                      {status.icon}
+                      {status.label}
+                    </div>
+                    
+                    <button 
+                      onClick={() => setActiveExport(activeExport === tz ? null : tz)}
+                      className="p-2 rounded-xl bg-bg-secondary border border-border-color hover:border-accent-color text-text-secondary hover:text-accent-color transition-all shadow-sm"
+                      title="Add to Calendar"
+                    >
+                      <Calendar className="w-4 h-4" />
+                    </button>
                   </div>
+
+                  <AnimatePresence>
+                    {activeExport === tz && (
+                      <motion.div
+                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
+                        className="absolute bottom-full mb-3 right-0 bg-bg-secondary border border-border-color rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] p-3 z-50 flex flex-col gap-1.5 min-w-[180px]"
+                      >
+                        <div className="text-[9px] font-black uppercase tracking-widest text-text-secondary mb-1 px-2 opacity-50">Export to</div>
+                        <a 
+                          href={generateCalendarLink('google', timeInZone, tz)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider hover:bg-accent-color/10 text-text-primary rounded-xl transition-colors flex items-center gap-3 border border-transparent hover:border-accent-color/20"
+                        >
+                          <div className="w-2 h-2 rounded-full bg-[#4285F4]" />
+                          Google Calendar
+                        </a>
+                        <a 
+                          href={generateCalendarLink('outlook', timeInZone, tz)} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider hover:bg-accent-color/10 text-text-primary rounded-xl transition-colors flex items-center gap-3 border border-transparent hover:border-accent-color/20"
+                        >
+                          <div className="w-2 h-2 rounded-full bg-[#0078D4]" />
+                          Outlook
+                        </a>
+                        <a 
+                          href={generateCalendarLink('apple', timeInZone, tz)} 
+                          download="meeting.ics"
+                          className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider hover:bg-accent-color/10 text-text-primary rounded-xl transition-colors flex items-center gap-3 border border-transparent hover:border-accent-color/20"
+                        >
+                          <div className="w-2 h-2 rounded-full bg-slate-400" />
+                          Apple / iCal
+                        </a>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </motion.div>
             );

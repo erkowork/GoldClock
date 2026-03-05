@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { DateTime } from 'luxon';
-import { formatTime } from '../utils/timezone';
-import { Trash2, Plus, MapPin } from 'lucide-react';
+import { formatTime, tzMapping } from '../utils/timezone';
+import { Trash2, Plus, MapPin, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations } from '../utils/translations';
 
@@ -11,6 +11,22 @@ export default function FavoritesList() {
   const t = translations[language];
   const [currentTime, setCurrentTime] = useState(DateTime.local());
   const [newFav, setNewFav] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const suggestionRef = useRef<HTMLDivElement>(null);
+
+  // Get all supported IANA timezones
+  const allTimezones = Intl.supportedValuesOf('timeZone');
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (suggestionRef.current && !suggestionRef.current.contains(event.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -19,15 +35,47 @@ export default function FavoritesList() {
     return () => clearInterval(timer);
   }, []);
 
-  const handleAdd = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (newFav.trim().length > 1) {
+      const query = newFav.toLowerCase();
+      
+      // Check expanded mapping first
+      const matchedFromMapping = Object.keys(tzMapping)
+        .filter(key => key.includes(query))
+        .map(key => ({ name: key, tz: tzMapping[key] }));
+
+      const matchedFromIANA = allTimezones
+        .filter(tz => tz.toLowerCase().includes(query))
+        .map(tz => ({ name: tz, tz }));
+
+      const combined = [...matchedFromMapping, ...matchedFromIANA];
+      
+      // Remove duplicates by timezone
+      const unique = combined.filter((v, i, a) => a.findIndex(t => t.tz === v.tz) === i).slice(0, 6);
+
+      setSuggestions(unique.map(u => u.name));
+      setShowSuggestions(unique.length > 0);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  }, [newFav]);
+
+  const handleAdd = (input: string) => {
+    const query = input.toLowerCase().trim();
+    let tz = tzMapping[query] || input;
+
+    if (DateTime.local().setZone(tz).isValid) {
+      addFavorite(tz);
+      setNewFav('');
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newFav.trim()) {
-      if (DateTime.local().setZone(newFav).isValid) {
-        addFavorite(newFav);
-        setNewFav('');
-      } else {
-        alert(language === 'de' ? 'Ungültige Zeitzone. Bitte IANA-Format verwenden (z.B. "America/New_York")' : 'Invalid Timezone. Please use IANA format like "America/New_York"');
-      }
+      handleAdd(newFav);
     }
   };
 
@@ -38,21 +86,47 @@ export default function FavoritesList() {
           <h2 className="text-4xl font-bold tracking-tighter mb-2">{t.savedLocations}</h2>
           <p className="text-text-secondary font-medium">Your personal world clock collection</p>
         </div>
-        <form onSubmit={handleAdd} className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-80">
-            <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-accent-color" />
-            <input
-              type="text"
-              value={newFav}
-              onChange={(e) => setNewFav(e.target.value)}
-              placeholder={t.addTimezone}
-              className="w-full pl-11 pr-4 py-3 rounded-full bg-bg-secondary border-2 border-border-color focus:border-accent-color outline-none text-sm font-medium transition-all"
-            />
-          </div>
-          <button type="submit" className="p-3 rounded-full bg-accent-color text-white hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent-color/20">
-            <Plus className="w-5 h-5" />
-          </button>
-        </form>
+        <div className="relative w-full sm:w-auto" ref={suggestionRef}>
+          <form onSubmit={handleSubmit} className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="relative flex-1 sm:w-80">
+              <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-accent-color" />
+              <input
+                type="text"
+                value={newFav}
+                onChange={(e) => setNewFav(e.target.value)}
+                onFocus={() => newFav.length > 1 && suggestions.length > 0 && setShowSuggestions(true)}
+                placeholder={t.addTimezone}
+                className="w-full pl-11 pr-4 py-3 rounded-full bg-bg-secondary border-2 border-border-color focus:border-accent-color outline-none text-sm font-medium transition-all"
+              />
+            </div>
+            <button type="submit" className="p-3 rounded-full bg-accent-color text-[var(--accent-text)] hover:opacity-90 transition-all active:scale-95 shadow-lg shadow-accent-color/20">
+              <Plus className="w-5 h-5" />
+            </button>
+          </form>
+
+          {/* Suggestions Dropdown */}
+          <AnimatePresence>
+            {showSuggestions && suggestions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-full left-0 right-0 mt-2 bg-bg-secondary border border-border-color rounded-2xl shadow-2xl z-50 overflow-hidden"
+              >
+                {suggestions.map((s) => (
+                  <button
+                    key={s}
+                    onClick={() => handleAdd(s)}
+                    className="w-full px-4 py-3 text-left text-sm font-medium hover:bg-accent-color/10 transition-colors flex items-center justify-between group"
+                  >
+                    <span className="capitalize">{s.replace(/_/g, ' ')}</span>
+                    <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 text-accent-color" />
+                  </button>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

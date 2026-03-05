@@ -5,6 +5,8 @@ import GoldenGlobe from './components/GoldenGlobe';
 import FavoritesList from './components/FavoritesList';
 import MeetingPlanner from './components/MeetingPlanner';
 import TimezoneScanner from './components/TimezoneScanner';
+import ThemeMenu from './components/ThemeMenu';
+import Logo from './components/Logo';
 import { useAppStore } from './store/useAppStore';
 import { motion } from 'motion/react';
 import { translations } from './utils/translations';
@@ -19,6 +21,7 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-bg-primary text-text-primary font-sans transition-colors duration-500 relative overflow-x-hidden">
+      <ThemeMenu />
       {/* Background Decorative Elements */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-accent-color/5 blur-[120px]" />
@@ -31,11 +34,11 @@ export default function App() {
       
       <main className="container mx-auto px-4 py-8 pb-24 relative z-10">
         {/* Hero Section */}
-        <section className="relative flex flex-col items-center justify-center min-h-[80vh] py-12">
+        <section className="relative flex flex-col items-center justify-center min-h-[60vh] py-12">
           
           {/* Globe Container - Centered and Large */}
-          <div className="absolute inset-0 flex items-center justify-center opacity-30 lg:opacity-60 pointer-events-none">
-            <div className="w-full max-w-[800px] aspect-square">
+          <div className="absolute inset-0 flex items-center justify-center opacity-20 lg:opacity-40 pointer-events-none">
+            <div className="w-full max-w-[600px] aspect-square">
               <GoldenGlobe />
             </div>
           </div>
@@ -43,34 +46,29 @@ export default function App() {
           {/* Main Content Overlay */}
           <div className="relative z-10 w-full max-w-4xl flex flex-col items-center">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-              className="text-center mb-12"
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="text-center mb-8"
             >
-              <motion.div
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-                className="inline-block px-4 py-1.5 rounded-full bg-accent-color/10 border border-accent-color/20 text-accent-color text-xs font-bold tracking-widest uppercase mb-6"
-              >
-                Smart World Time Converter
-              </motion.div>
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent-color/10 border border-accent-color/20 text-accent-color text-[10px] font-bold tracking-[0.2em] uppercase mb-4">
+                <Logo className="w-3 h-3" />
+                GoldClock Precision
+              </div>
               
-              <h2 className="text-5xl md:text-7xl font-extrabold tracking-tighter mb-6 leading-[0.9]">
-                {t.heroTitle} <br />
-                <span className="text-accent-color italic">{t.germany}</span>?
+              <h2 className="text-2xl md:text-4xl font-black tracking-tighter mb-4 leading-none opacity-90">
+                {language === 'de' ? 'Intelligente Weltzeit' : 'Intelligent World Time'}
               </h2>
               
-              <p className="max-w-xl mx-auto text-text-secondary text-lg md:text-xl font-medium leading-relaxed">
+              <p className="max-w-lg mx-auto text-text-secondary text-sm md:text-base font-medium opacity-60">
                 {t.heroSubtitle}
               </p>
             </motion.div>
 
             <motion.div
-              initial={{ opacity: 0, y: 40 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4, duration: 0.8 }}
+              transition={{ delay: 0.2, duration: 0.6 }}
               className="w-full"
             >
               <Converter />
@@ -112,18 +110,16 @@ export default function App() {
       {/* Footer */}
       <footer className="relative z-10 py-16 px-4 border-t border-border-color bg-bg-secondary/50 backdrop-blur-sm">
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-accent-color flex items-center justify-center text-white font-bold text-xl">G</div>
-            <span className="text-xl font-bold tracking-tighter uppercase">GoldClock</span>
+          <div className="flex items-center gap-4">
+            <Logo className="w-10 h-10" />
+            <div className="flex flex-col">
+              <span className="text-xl font-black tracking-tighter uppercase leading-none">GoldClock</span>
+              <span className="text-[10px] font-bold text-accent-color tracking-widest uppercase">GoldApps</span>
+            </div>
           </div>
-          <p className="text-text-secondary text-sm font-medium">
-            {t.footer}
+          <p className="text-text-secondary text-sm font-bold tracking-tight">
+            GoldClock - GoldApps © 2026 - Intelligenter Weltzeit-Konverter
           </p>
-          <div className="flex gap-6 text-text-secondary">
-            <a href="#" className="hover:text-accent-color transition-colors">Privacy</a>
-            <a href="#" className="hover:text-accent-color transition-colors">Terms</a>
-            <a href="#" className="hover:text-accent-color transition-colors">Contact</a>
-          </div>
         </div>
       </footer>
     </div>

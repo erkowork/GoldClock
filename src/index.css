@@ -15,6 +15,7 @@
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --accent-color: #d4af37;
+  --accent-text: #ffffff;
   --border-color: #e2e8f0;
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(255, 255, 255, 0.5);
@@ -27,6 +28,7 @@
   --text-primary: #f8fafc;
   --text-secondary: #94a3b8;
   --accent-color: #d4af37;
+  --accent-text: #ffffff;
   --border-color: #334155;
   --glass-bg: rgba(30, 41, 59, 0.7);
   --glass-border: rgba(255, 255, 255, 0.1);
@@ -38,6 +40,7 @@
   --text-primary: #ffffff;
   --text-secondary: #d4af37;
   --accent-color: #d4af37;
+  --accent-text: #ffffff;
   --border-color: rgba(212, 175, 55, 0.2);
   --glass-bg: rgba(20, 20, 20, 0.8);
   --glass-border: rgba(212, 175, 55, 0.3);
@@ -50,6 +53,7 @@
   --text-primary: #00ffcc;
   --text-secondary: #008877;
   --accent-color: #00ffcc;
+  --accent-text: #000000;
   --border-color: #003322;
   --glass-bg: rgba(0, 5, 5, 0.9);
   --glass-border: #00ffcc;
@@ -62,6 +66,7 @@
   --text-primary: #4a154b;
   --text-secondary: #9e768f;
   --accent-color: #ff4081;
+  --accent-text: #ffffff;
   --border-color: #fce4ec;
   --glass-bg: rgba(255, 255, 255, 0.8);
   --glass-border: rgba(255, 64, 129, 0.2);
@@ -74,6 +79,7 @@
   --text-primary: #e6fcf5;
   --text-secondary: #63e6be;
   --accent-color: #20c997;
+  --accent-text: #000000;
   --border-color: #123d30;
   --glass-bg: rgba(6, 26, 20, 0.85);
   --glass-border: rgba(32, 201, 151, 0.3);
@@ -86,6 +92,7 @@
   --text-primary: #1a1a1a;
   --text-secondary: #5a5a5a;
   --accent-color: #1a1a1a;
+  --accent-text: #ffffff;
   --border-color: #dcdbc8;
   --glass-bg: rgba(253, 252, 240, 0.9);
   --glass-border: rgba(0, 0, 0, 0.1);
@@ -98,6 +105,7 @@
   --text-primary: #ffff00;
   --text-secondary: #ffffff;
   --accent-color: #ffff00;
+  --accent-text: #000000;
   --border-color: #ffffff;
   --glass-bg: #000000;
   --glass-border: #ffffff;

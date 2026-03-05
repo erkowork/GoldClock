@@ -15,6 +15,8 @@ interface AppState {
   favorites: string[];
   addFavorite: (tz: string) => void;
   removeFavorite: (tz: string) => void;
+  isThemeMenuOpen: boolean;
+  setIsThemeMenuOpen: (isOpen: boolean) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -33,6 +35,8 @@ export const useAppStore = create<AppState>()(
       removeFavorite: (tz) => set((state) => ({ 
         favorites: state.favorites.filter((f) => f !== tz) 
       })),
+      isThemeMenuOpen: false,
+      setIsThemeMenuOpen: (isThemeMenuOpen) => set({ isThemeMenuOpen }),
     }),
     {
       name: 'goldclock-storage',

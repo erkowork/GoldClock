@@ -5,8 +5,7 @@ import Logo from './Logo';
 import ThemeMenu from './ThemeMenu';
 
 export default function Header() {
-  const { use24HourFormat, toggleTimeFormat, language, setLanguage } = useAppStore();
-  const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
+  const { use24HourFormat, toggleTimeFormat, language, setLanguage, setIsThemeMenuOpen } = useAppStore();
 
   return (
     <header className="w-full py-4 px-6 flex items-center justify-between glass-panel rounded-b-2xl sticky top-0 z-50">
@@ -43,8 +42,6 @@ export default function Header() {
           <Palette className="w-5 h-5 text-accent-color" />
         </button>
       </div>
-
-      <ThemeMenu isOpen={isThemeMenuOpen} onClose={() => setIsThemeMenuOpen(false)} />
     </header>
   );
 }
