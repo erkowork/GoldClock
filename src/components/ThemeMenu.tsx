@@ -15,12 +15,14 @@ interface ThemeOption {
 const themeOptions: ThemeOption[] = [
   { id: 'light', name: 'Light', preview: 'bg-white border-slate-200', accent: 'bg-[#d4af37]', description: 'Clean & Professional' },
   { id: 'dark', name: 'Dark', preview: 'bg-[#0f172a] border-slate-800', accent: 'bg-[#d4af37]', description: 'Classic Night Mode' },
-  { id: 'gold-glass', name: 'Gold Glass', preview: 'bg-[#121212] border-[#d4af37]/30', accent: 'bg-[#d4af37]', description: 'Luxury & Elegance' },
-  { id: 'midnight-neon', name: 'Midnight Neon', preview: 'bg-black border-[#00ffcc]/30', accent: 'bg-[#00ffcc]', description: 'Futuristic Cyberpunk' },
-  { id: 'rose-quartz', name: 'Rose Quartz', preview: 'bg-[#fff5f7] border-pink-200', accent: 'bg-[#ff4081]', description: 'Soft & Approachable' },
-  { id: 'emerald-forest', name: 'Emerald Forest', preview: 'bg-[#061a14] border-emerald-800', accent: 'bg-[#20c997]', description: 'Deep & Organic' },
-  { id: 'editorial-serif', name: 'Editorial', preview: 'bg-[#fdfcf0] border-stone-300', accent: 'bg-[#1a1a1a]', description: 'Classic Typography' },
-  { id: 'high-contrast', name: 'Contrast', preview: 'bg-black border-white', accent: 'bg-[#ffff00]', description: 'Maximum Visibility' },
+  { id: 'theme-coffee', name: 'Coffee', preview: 'bg-[#222831] border-[#393E46]', accent: 'bg-[#948979]', description: 'Warm & Technical' },
+  { id: 'theme-matcha', name: 'Matcha', preview: 'bg-[#2C3930] border-[#3F4F44]', accent: 'bg-[#A27B5C]', description: 'Organic & Calm' },
+  { id: 'theme-cosy', name: 'Cosy', preview: 'bg-[#F7F1DE] border-[#C4A484]', accent: 'bg-[#B87C4C]', description: 'Soft & Modern' },
+  { id: 'theme-sunset', name: 'Sunset', preview: 'bg-[#6A2C70] border-[#B83B5E]', accent: 'bg-[#F08A5D]', description: 'Bold & Dramatic' },
+  { id: 'theme-beton', name: 'Beton', preview: 'bg-[#393E46] border-[#222831]', accent: 'bg-[#948979]', description: 'Industrial Grey' },
+  { id: 'theme-gold', name: 'Gold', preview: 'bg-[#222222] border-[#FA8112]', accent: 'bg-[#FA8112]', description: 'Luxury & Elegant' },
+  { id: 'theme-mint', name: 'Mint', preview: 'bg-[#FFF8E8] border-[#DEE8CE]', accent: 'bg-[#F08B51]', description: 'Fresh & Approachable' },
+  { id: 'theme-night', name: 'Night', preview: 'bg-[#0C0C0C] border-[#481E14]', accent: 'bg-[#F2613F]', description: 'Cyber & Intense' },
 ];
 
 export default function ThemeMenu() {

@@ -6,6 +6,8 @@ import { Trash2, Plus, MapPin, X, Sun, Cloud, CloudRain, Snowflake, CloudLightni
 import { motion, AnimatePresence } from 'motion/react';
 import { translations } from '../utils/translations';
 import { getWeather, WeatherData } from '../services/weatherService';
+import { searchCities, CityResult, getFlagUrl } from '../services/geoService';
+import Fuse from 'fuse.js';
 
 const WeatherIcon = ({ code, className }: { code: number, className?: string }) => {
   if (code === 0) return <Sun className={className} />;
@@ -19,8 +21,15 @@ const WeatherIcon = ({ code, className }: { code: number, className?: string }) 
   return <Cloud className={className} />;
 };
 
+// Local fuzzy search for common mappings
+const fuse = new Fuse(Object.keys(tzMapping).map(key => ({ name: key, tz: tzMapping[key] })), {
+  keys: ['name'],
+  threshold: 0.3
+});
+
 const FavoriteCard = ({ tz, currentTime, removeFavorite, use24HourFormat, language }: any) => {
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [countryCode, setCountryCode] = useState<string>('');
   const timeInZone = currentTime.setZone(tz);
   const isDay = timeInZone.hour >= 6 && timeInZone.hour < 18;
 
@@ -28,6 +37,12 @@ const FavoriteCard = ({ tz, currentTime, removeFavorite, use24HourFormat, langua
     const city = tz.split('/').pop()?.replace('_', ' ');
     if (city) {
       getWeather(city).then(setWeather);
+      // Try to get country code from search
+      searchCities(city).then(results => {
+        if (results.length > 0) {
+          setCountryCode(results[0].countryCode);
+        }
+      });
     }
   }, [tz]);
 
@@ -50,7 +65,16 @@ const FavoriteCard = ({ tz, currentTime, removeFavorite, use24HourFormat, langua
 
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2 text-xs font-bold text-accent-color uppercase tracking-widest">
-          <MapPin className="w-3 h-3" />
+          {countryCode ? (
+            <img 
+              src={getFlagUrl(countryCode)} 
+              alt="Flag" 
+              className="w-4 h-3 object-cover rounded-sm shadow-sm"
+              referrerPolicy="no-referrer"
+            />
+          ) : (
+            <MapPin className="w-3 h-3" />
+          )}
           <span className="truncate max-w-[120px]">{tz.split('/').pop()?.replace('_', ' ')}</span>
         </div>
         {weather && (
@@ -80,12 +104,9 @@ export default function FavoritesList() {
   const t = translations[language];
   const [currentTime, setCurrentTime] = useState(DateTime.local());
   const [newFav, setNewFav] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<CityResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestionRef = useRef<HTMLDivElement>(null);
-
-  // Get all supported IANA timezones
-  const allTimezones = Intl.supportedValuesOf('timeZone');
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -105,35 +126,38 @@ export default function FavoritesList() {
   }, []);
 
   useEffect(() => {
-    if (newFav.trim().length > 1) {
-      const query = newFav.toLowerCase().trim();
+    const timer = setTimeout(async () => {
+      if (!newFav.trim() || newFav.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+
+      // 1. Local Fuzzy Search
+      const localResults = fuse.search(newFav).slice(0, 3).map(r => ({
+        name: r.item.name,
+        country: '',
+        countryCode: '',
+        timezone: r.item.tz,
+        latitude: 0,
+        longitude: 0
+      }));
+
+      // 2. API Search
+      const apiResults = await searchCities(newFav);
       
-      const mappingMatches = Object.keys(tzMapping)
-        .filter(key => key.includes(query))
-        .map(key => ({ name: key, tz: tzMapping[key] }));
+      const combined = [...localResults, ...apiResults];
+      const unique = combined.filter((v, i, a) => a.findIndex(t => t.name.toLowerCase() === v.name.toLowerCase()) === i).slice(0, 8);
 
-      const ianaMatches = allTimezones
-        .filter(tz => tz.toLowerCase().includes(query))
-        .map(tz => ({ name: tz, tz }));
-
-      const combined = [...mappingMatches, ...ianaMatches];
-      
-      // Remove duplicates by timezone
-      const unique = combined.filter((v, i, a) => a.findIndex(t => t.tz === v.tz) === i).slice(0, 8);
-
-      setSuggestions(unique.map(u => u.name));
+      setSuggestions(unique);
       setShowSuggestions(unique.length > 0);
-    } else {
-      setSuggestions([]);
-      setShowSuggestions(false);
-    }
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [newFav]);
 
-  const handleAdd = (input: string) => {
-    const tz = parseTimezoneInput(input);
-
-    if (tz && DateTime.local().setZone(tz).isValid) {
-      addFavorite(tz);
+  const handleAdd = (city: CityResult) => {
+    if (DateTime.local().setZone(city.timezone).isValid) {
+      addFavorite(city.timezone);
       setNewFav('');
       setShowSuggestions(false);
     }
@@ -141,8 +165,8 @@ export default function FavoritesList() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (newFav.trim()) {
-      handleAdd(newFav);
+    if (suggestions.length > 0) {
+      handleAdd(suggestions[0]);
     }
   };
 
@@ -180,13 +204,28 @@ export default function FavoritesList() {
                 exit={{ opacity: 0, y: -10 }}
                 className="absolute top-full left-0 right-0 mt-2 bg-bg-secondary border border-border-color rounded-2xl shadow-2xl z-50 overflow-hidden"
               >
-                {suggestions.map((s) => (
+                {suggestions.map((s, idx) => (
                   <button
-                    key={s}
+                    key={`${s.name}-${idx}`}
                     onClick={() => handleAdd(s)}
                     className="w-full px-4 py-3 text-left text-sm font-medium hover:bg-accent-color/10 transition-colors flex items-center justify-between group"
                   >
-                    <span className="capitalize">{s.replace(/_/g, ' ')}</span>
+                    <div className="flex items-center gap-3">
+                      {s.countryCode ? (
+                        <img 
+                          src={getFlagUrl(s.countryCode)} 
+                          alt={s.country} 
+                          className="w-4 h-3 object-cover rounded-sm shadow-sm"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <MapPin className="w-3 h-3 text-accent-color opacity-50" />
+                      )}
+                      <div className="flex flex-col">
+                        <span className="capitalize">{s.name}</span>
+                        {s.country && <span className="text-[10px] text-text-secondary opacity-70">{s.country}</span>}
+                      </div>
+                    </div>
                     <Plus className="w-3 h-3 opacity-0 group-hover:opacity-100 text-accent-color" />
                   </button>
                 ))}

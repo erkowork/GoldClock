@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { DateTime } from 'luxon';
 
-export type Theme = 'light' | 'dark' | 'gold-glass' | 'midnight-neon' | 'rose-quartz' | 'emerald-forest' | 'editorial-serif' | 'high-contrast';
+export type Theme = 'light' | 'dark' | 'theme-coffee' | 'theme-matcha' | 'theme-cosy' | 'theme-sunset' | 'theme-beton' | 'theme-gold' | 'theme-mint' | 'theme-night';
 export type Language = 'de' | 'en';
 
 interface AppState {
@@ -22,7 +22,7 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set) => ({
-      theme: 'gold-glass',
+      theme: 'theme-gold',
       setTheme: (theme) => set({ theme }),
       language: 'de',
       setLanguage: (language) => set({ language }),

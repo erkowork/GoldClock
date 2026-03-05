@@ -6,6 +6,8 @@ import { DateTime } from 'luxon';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations } from '../utils/translations';
 import { getWeather, WeatherData } from '../services/weatherService';
+import { searchCities, CityResult, getFlagUrl } from '../services/geoService';
+import Fuse from 'fuse.js';
 
 const WeatherIcon = ({ code, className }: { code: number, className?: string }) => {
   if (code === 0) return <Sun className={className} />;
@@ -19,14 +21,21 @@ const WeatherIcon = ({ code, className }: { code: number, className?: string }) 
   return <Cloud className={className} />;
 };
 
+// Local fuzzy search for common mappings
+const fuse = new Fuse(Object.keys(tzMapping).map(key => ({ name: key, tz: tzMapping[key] })), {
+  keys: ['name'],
+  threshold: 0.3
+});
+
 export default function Converter() {
   const [input, setInput] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<CityResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const { use24HourFormat, language, addFavorite, favorites } = useAppStore();
   const t = translations[language];
   const suggestionRef = useRef<HTMLDivElement>(null);
   const [weather, setWeather] = useState<WeatherData | null>(null);
+  const [selectedCity, setSelectedCity] = useState<CityResult | null>(null);
 
   const [result, setResult] = useState<{
     sourceTime: DateTime;
@@ -36,20 +45,12 @@ export default function Converter() {
   } | null>(null);
 
   useEffect(() => {
-    if (result && !result.isJustZone) {
-      const city = result.sourceZone.split('/').pop()?.replace('_', ' ');
-      if (city) {
-        getWeather(city).then(setWeather);
-      }
-    } else if (result && result.isJustZone) {
-      const city = result.sourceZone.split('/').pop()?.replace('_', ' ');
-      if (city) {
-        getWeather(city).then(setWeather);
-      }
+    if (selectedCity) {
+      getWeather(selectedCity.name).then(setWeather);
     } else {
       setWeather(null);
     }
-  }, [result?.sourceZone]);
+  }, [selectedCity]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -62,69 +63,57 @@ export default function Converter() {
   }, []);
 
   useEffect(() => {
-    if (!input.trim()) {
-      setResult(null);
-      setSuggestions([]);
-      return;
-    }
-
-    // Suggestions logic
-    const normalizedInput = input.toLowerCase().trim();
-    const allIANA = Intl.supportedValuesOf('timeZone');
-    
-    const mappingMatches = Object.keys(tzMapping)
-      .filter(key => key.includes(normalizedInput))
-      .map(key => ({ name: key, tz: tzMapping[key], type: 'mapping' }));
-
-    const ianaMatches = allIANA
-      .filter(tz => tz.toLowerCase().includes(normalizedInput))
-      .map(tz => ({ name: tz, tz, type: 'iana' }));
-
-    const combined = [...mappingMatches, ...ianaMatches];
-    
-    // Remove duplicates by timezone and slice
-    const unique = combined.filter((v, i, a) => a.findIndex(t => t.tz === v.tz) === i).slice(0, 8);
-    
-    setSuggestions(unique.map(u => u.name));
-    setShowSuggestions(unique.length > 0);
-
-    // Universal Search Logic
-    const extracted = extractTimeAndZone(input);
-    if (extracted) {
-      const parsedDt = parseDateTimeWithZone(extracted.time, extracted.zone);
-      if (parsedDt) {
-        const nowInZone = DateTime.local().setZone(extracted.zone);
-        const finalDt = parsedDt.set({ year: nowInZone.year, month: nowInZone.month, day: nowInZone.day });
-        
-        setResult({
-          sourceTime: finalDt,
-          sourceZone: extracted.zone,
-          germanTime: getGermanTime(finalDt),
-        });
+    const timer = setTimeout(async () => {
+      if (!input.trim() || input.length < 2) {
+        setSuggestions([]);
         return;
       }
-    }
 
-    // Try just zone
-    const zone = parseTimezoneInput(input);
-    if (zone) {
-      const nowInZone = DateTime.local().setZone(zone);
-      setResult({
-        sourceTime: nowInZone,
-        sourceZone: zone,
-        germanTime: getGermanTime(nowInZone),
-        isJustZone: true
-      });
-    } else {
-      setResult(null);
-    }
+      // 1. Local Fuzzy Search
+      const localResults = fuse.search(input).slice(0, 3).map(r => ({
+        name: r.item.name,
+        country: '',
+        countryCode: '',
+        timezone: r.item.tz,
+        latitude: 0,
+        longitude: 0
+      }));
+
+      // 2. API Search (GeoNames based)
+      const apiResults = await searchCities(input);
+      
+      // Combine and deduplicate
+      const combined = [...localResults, ...apiResults];
+      const unique = combined.filter((v, i, a) => a.findIndex(t => t.name.toLowerCase() === v.name.toLowerCase()) === i).slice(0, 8);
+      
+      setSuggestions(unique);
+      setShowSuggestions(unique.length > 0);
+    }, 300);
+
+    return () => clearTimeout(timer);
   }, [input]);
+
+  const handleSelectCity = (city: CityResult) => {
+    setSelectedCity(city);
+    const nowInZone = DateTime.local().setZone(city.timezone);
+    
+    setResult({
+      sourceTime: nowInZone,
+      sourceZone: city.timezone,
+      germanTime: getGermanTime(nowInZone),
+      isJustZone: true
+    });
+    
+    setInput(city.name);
+    setShowSuggestions(false);
+  };
 
   const handleAddFavorite = () => {
     if (result) {
       addFavorite(result.sourceZone);
       setInput('');
       setResult(null);
+      setSelectedCity(null);
     }
   };
 
@@ -164,19 +153,28 @@ export default function Converter() {
               className="absolute top-full left-0 right-0 mt-2 bg-bg-secondary border border-border-color rounded-2xl shadow-2xl overflow-hidden z-[60]"
             >
               <div className="p-2 flex flex-col gap-1">
-                {suggestions.map((s) => (
+                {suggestions.map((s, idx) => (
                   <button
-                    key={s}
-                    onClick={() => {
-                      setInput(s);
-                      setShowSuggestions(false);
-                    }}
+                    key={`${s.name}-${idx}`}
+                    onClick={() => handleSelectCity(s)}
                     className="flex items-center gap-3 px-4 py-3 hover:bg-accent-color/10 rounded-xl transition-colors text-left group"
                   >
-                    <MapPin className="w-4 h-4 text-accent-color opacity-50 group-hover:opacity-100" />
-                    <span className="text-sm font-bold capitalize text-text-primary">{s}</span>
+                    {s.countryCode ? (
+                      <img 
+                        src={getFlagUrl(s.countryCode)} 
+                        alt={s.country} 
+                        className="w-5 h-3.5 object-cover rounded-sm shadow-sm"
+                        referrerPolicy="no-referrer"
+                      />
+                    ) : (
+                      <MapPin className="w-4 h-4 text-accent-color opacity-50 group-hover:opacity-100" />
+                    )}
+                    <div className="flex flex-col">
+                      <span className="text-sm font-bold capitalize text-text-primary">{s.name}</span>
+                      {s.country && <span className="text-[10px] text-text-secondary opacity-70">{s.country}{s.admin1 ? `, ${s.admin1}` : ''}</span>}
+                    </div>
                     <span className="ml-auto text-[10px] font-bold text-text-secondary uppercase tracking-widest opacity-50">
-                      {(tzMapping[s.toLowerCase()] || s).split('/').pop()?.replace('_', ' ')}
+                      {s.timezone.split('/').pop()?.replace('_', ' ')}
                     </span>
                   </button>
                 ))}
@@ -199,8 +197,19 @@ export default function Converter() {
               <div className="glass-panel p-8 rounded-[2rem] text-center relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-full h-1 bg-text-secondary/20" />
                 <div className="flex items-center justify-center gap-2 text-text-secondary mb-3">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-xs font-bold uppercase tracking-widest">{result.sourceZone.split('/').pop()?.replace('_', ' ')}</span>
+                  {selectedCity?.countryCode ? (
+                    <img 
+                      src={getFlagUrl(selectedCity.countryCode)} 
+                      alt={selectedCity.country} 
+                      className="w-4 h-3 object-cover rounded-sm shadow-sm"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <MapPin className="w-4 h-4" />
+                  )}
+                  <span className="text-xs font-bold uppercase tracking-widest">
+                    {selectedCity?.name || result.sourceZone.split('/').pop()?.replace('_', ' ')}
+                  </span>
                   {weather && (
                     <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-text-secondary/20">
                       <WeatherIcon code={weather.conditionCode} className="w-3.5 h-3.5 text-accent-color" />

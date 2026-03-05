@@ -38,12 +38,14 @@ export default function GoldenGlobe() {
   const getGlobeColors = () => {
     switch(theme) {
       case 'dark': return { globe: '#1e293b', atmosphere: '#38bdf8', bg: 'rgba(0,0,0,0)', arcs: '#38bdf8' };
-      case 'gold-glass': return { globe: '#1a1a1a', atmosphere: '#d4af37', bg: 'rgba(0,0,0,0)', arcs: '#d4af37' };
-      case 'midnight-neon': return { globe: '#000000', atmosphere: '#00ffcc', bg: 'rgba(0,0,0,0)', arcs: '#00ffcc' };
-      case 'rose-quartz': return { globe: '#fff5f7', atmosphere: '#ff4081', bg: 'rgba(0,0,0,0)', arcs: '#ff4081' };
-      case 'emerald-forest': return { globe: '#061a14', atmosphere: '#20c997', bg: 'rgba(0,0,0,0)', arcs: '#20c997' };
-      case 'editorial-serif': return { globe: '#fdfcf0', atmosphere: '#1a1a1a', bg: 'rgba(0,0,0,0)', arcs: '#1a1a1a' };
-      case 'high-contrast': return { globe: '#000000', atmosphere: '#ffff00', bg: 'rgba(0,0,0,0)', arcs: '#ffff00' };
+      case 'theme-coffee': return { globe: '#222831', atmosphere: '#948979', bg: 'rgba(0,0,0,0)', arcs: '#948979' };
+      case 'theme-matcha': return { globe: '#2C3930', atmosphere: '#A27B5C', bg: 'rgba(0,0,0,0)', arcs: '#A27B5C' };
+      case 'theme-cosy': return { globe: '#F7F1DE', atmosphere: '#B87C4C', bg: 'rgba(0,0,0,0)', arcs: '#B87C4C' };
+      case 'theme-sunset': return { globe: '#6A2C70', atmosphere: '#F08A5D', bg: 'rgba(0,0,0,0)', arcs: '#F08A5D' };
+      case 'theme-beton': return { globe: '#393E46', atmosphere: '#948979', bg: 'rgba(0,0,0,0)', arcs: '#948979' };
+      case 'theme-gold': return { globe: '#222222', atmosphere: '#FA8112', bg: 'rgba(0,0,0,0)', arcs: '#FA8112' };
+      case 'theme-mint': return { globe: '#FFF8E8', atmosphere: '#F08B51', bg: 'rgba(0,0,0,0)', arcs: '#F08B51' };
+      case 'theme-night': return { globe: '#0C0C0C', atmosphere: '#F2613F', bg: 'rgba(0,0,0,0)', arcs: '#F2613F' };
       default: return { globe: '#f8fafc', atmosphere: '#d4af37', bg: 'rgba(0,0,0,0)', arcs: '#d4af37' };
     }
   };
@@ -65,7 +67,7 @@ export default function GoldenGlobe() {
         ref={globeEl}
         width={dimensions.width}
         height={dimensions.height}
-        globeImageUrl={theme === 'light' || theme === 'rose-quartz' || theme === 'editorial-serif' 
+        globeImageUrl={theme === 'light' || theme === 'theme-cosy' || theme === 'theme-mint' 
           ? "//unpkg.com/three-globe/example/img/earth-blue-marble.jpg"
           : "//unpkg.com/three-globe/example/img/earth-night.jpg"
         }
