@@ -1,10 +1,79 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { DateTime } from 'luxon';
-import { formatTime, tzMapping } from '../utils/timezone';
-import { Trash2, Plus, MapPin, X } from 'lucide-react';
+import { formatTime, tzMapping, parseTimezoneInput } from '../utils/timezone';
+import { Trash2, Plus, MapPin, X, Sun, Cloud, CloudRain, Snowflake, CloudLightning, CloudSun, CloudDrizzle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations } from '../utils/translations';
+import { getWeather, WeatherData } from '../services/weatherService';
+
+const WeatherIcon = ({ code, className }: { code: number, className?: string }) => {
+  if (code === 0) return <Sun className={className} />;
+  if (code >= 1 && code <= 3) return <CloudSun className={className} />;
+  if (code === 45 || code === 48) return <Cloud className={className} />;
+  if (code >= 51 && code <= 55) return <CloudDrizzle className={className} />;
+  if (code >= 61 && code <= 65) return <CloudRain className={className} />;
+  if (code >= 71 && code <= 75) return <Snowflake className={className} />;
+  if (code >= 80 && code <= 82) return <CloudRain className={className} />;
+  if (code >= 95) return <CloudLightning className={className} />;
+  return <Cloud className={className} />;
+};
+
+const FavoriteCard = ({ tz, currentTime, removeFavorite, use24HourFormat, language }: any) => {
+  const [weather, setWeather] = useState<WeatherData | null>(null);
+  const timeInZone = currentTime.setZone(tz);
+  const isDay = timeInZone.hour >= 6 && timeInZone.hour < 18;
+
+  useEffect(() => {
+    const city = tz.split('/').pop()?.replace('_', ' ');
+    if (city) {
+      getWeather(city).then(setWeather);
+    }
+  }, [tz]);
+
+  return (
+    <motion.div
+      layout
+      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: 10 }}
+      className="glass-panel p-6 rounded-[2rem] relative group overflow-hidden border-2 border-transparent hover:border-accent-color/30 transition-all duration-500"
+    >
+      <div className={`absolute top-0 left-0 w-full h-1.5 ${isDay ? 'bg-gradient-to-r from-yellow-400 to-orange-500' : 'bg-gradient-to-r from-indigo-900 to-purple-900'}`} />
+      
+      <button
+        onClick={() => removeFavorite(tz)}
+        className="absolute top-4 right-4 p-2 text-text-secondary opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all rounded-full hover:bg-red-500/10"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2 text-xs font-bold text-accent-color uppercase tracking-widest">
+          <MapPin className="w-3 h-3" />
+          <span className="truncate max-w-[120px]">{tz.split('/').pop()?.replace('_', ' ')}</span>
+        </div>
+        {weather && (
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-accent-color/10 border border-accent-color/20">
+            <WeatherIcon code={weather.conditionCode} className="w-3 h-3 text-accent-color" />
+            <span className="text-[10px] font-bold text-accent-color">{weather.temp}°C</span>
+          </div>
+        )}
+      </div>
+      
+      <div className="text-5xl font-light tracking-tighter mb-4">
+        {formatTime(timeInZone, use24HourFormat)}
+      </div>
+      
+      <div className="flex items-center justify-between text-xs font-medium text-text-secondary">
+        <span>{timeInZone.setLocale(language).toFormat('ccc, d. MMM')}</span>
+        <span className="bg-bg-primary px-2 py-1 rounded-lg border border-border-color font-mono">
+          UTC{timeInZone.toFormat('ZZ')}
+        </span>
+      </div>
+    </motion.div>
+  );
+};
 
 export default function FavoritesList() {
   const { favorites, removeFavorite, addFavorite, use24HourFormat, language } = useAppStore();
@@ -37,21 +106,20 @@ export default function FavoritesList() {
 
   useEffect(() => {
     if (newFav.trim().length > 1) {
-      const query = newFav.toLowerCase();
+      const query = newFav.toLowerCase().trim();
       
-      // Check expanded mapping first
-      const matchedFromMapping = Object.keys(tzMapping)
+      const mappingMatches = Object.keys(tzMapping)
         .filter(key => key.includes(query))
         .map(key => ({ name: key, tz: tzMapping[key] }));
 
-      const matchedFromIANA = allTimezones
+      const ianaMatches = allTimezones
         .filter(tz => tz.toLowerCase().includes(query))
         .map(tz => ({ name: tz, tz }));
 
-      const combined = [...matchedFromMapping, ...matchedFromIANA];
+      const combined = [...mappingMatches, ...ianaMatches];
       
       // Remove duplicates by timezone
-      const unique = combined.filter((v, i, a) => a.findIndex(t => t.tz === v.tz) === i).slice(0, 6);
+      const unique = combined.filter((v, i, a) => a.findIndex(t => t.tz === v.tz) === i).slice(0, 8);
 
       setSuggestions(unique.map(u => u.name));
       setShowSuggestions(unique.length > 0);
@@ -62,10 +130,9 @@ export default function FavoritesList() {
   }, [newFav]);
 
   const handleAdd = (input: string) => {
-    const query = input.toLowerCase().trim();
-    let tz = tzMapping[query] || input;
+    const tz = parseTimezoneInput(input);
 
-    if (DateTime.local().setZone(tz).isValid) {
+    if (tz && DateTime.local().setZone(tz).isValid) {
       addFavorite(tz);
       setNewFav('');
       setShowSuggestions(false);
@@ -131,46 +198,16 @@ export default function FavoritesList() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <AnimatePresence mode="popLayout">
-          {favorites.map((tz) => {
-            const timeInZone = currentTime.setZone(tz);
-            const isDay = timeInZone.hour >= 6 && timeInZone.hour < 18;
-            
-            return (
-              <motion.div
-                layout
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                key={tz}
-                className="glass-panel p-6 rounded-[2rem] relative group overflow-hidden border-2 border-transparent hover:border-accent-color/30 transition-all duration-500"
-              >
-                <div className={`absolute top-0 left-0 w-full h-1.5 ${isDay ? 'bg-gradient-to-r from-yellow-400 to-orange-500' : 'bg-gradient-to-r from-indigo-900 to-purple-900'}`} />
-                
-                <button
-                  onClick={() => removeFavorite(tz)}
-                  className="absolute top-4 right-4 p-2 text-text-secondary opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all rounded-full hover:bg-red-500/10"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-
-                <div className="flex items-center gap-2 text-xs font-bold text-accent-color uppercase tracking-widest mb-4">
-                  <MapPin className="w-3 h-3" />
-                  <span className="truncate pr-4">{tz.split('/').pop()?.replace('_', ' ')}</span>
-                </div>
-                
-                <div className="text-5xl font-light tracking-tighter mb-4">
-                  {formatTime(timeInZone, use24HourFormat)}
-                </div>
-                
-                <div className="flex items-center justify-between text-xs font-medium text-text-secondary">
-                  <span>{timeInZone.setLocale(language).toFormat('ccc, d. MMM')}</span>
-                  <span className="bg-bg-primary px-2 py-1 rounded-lg border border-border-color font-mono">
-                    UTC{timeInZone.toFormat('ZZ')}
-                  </span>
-                </div>
-              </motion.div>
-            );
-          })}
+          {favorites.map((tz) => (
+            <FavoriteCard
+              key={tz}
+              tz={tz}
+              currentTime={currentTime}
+              removeFavorite={removeFavorite}
+              use24HourFormat={use24HourFormat}
+              language={language}
+            />
+          ))}
         </AnimatePresence>
       </div>
     </div>

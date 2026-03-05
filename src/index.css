@@ -7,6 +7,13 @@
   --font-serif: "Playfair Display", serif;
   --font-display: "Outfit", sans-serif;
   --font-tech: "Space Grotesk", sans-serif;
+
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-secondary: var(--bg-secondary);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-accent-color: var(--accent-color);
+  --color-border-color: var(--border-color);
 }
 
 :root {
@@ -15,7 +22,7 @@
   --text-primary: #0f172a;
   --text-secondary: #64748b;
   --accent-color: #d4af37;
-  --accent-text: #ffffff;
+  --accent-text: #000000;
   --border-color: #e2e8f0;
   --glass-bg: rgba(255, 255, 255, 0.7);
   --glass-border: rgba(255, 255, 255, 0.5);

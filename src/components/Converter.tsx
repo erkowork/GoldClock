@@ -1,10 +1,23 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, ArrowRight, Clock, Plus, X } from 'lucide-react';
+import { Search, MapPin, ArrowRight, Clock, Plus, X, Sun, Cloud, CloudRain, Snowflake, CloudLightning, CloudSun, CloudDrizzle } from 'lucide-react';
 import { extractTimeAndZone, parseDateTimeWithZone, getGermanTime, formatTime, parseTimezoneInput, tzMapping } from '../utils/timezone';
 import { useAppStore } from '../store/useAppStore';
 import { DateTime } from 'luxon';
 import { motion, AnimatePresence } from 'motion/react';
 import { translations } from '../utils/translations';
+import { getWeather, WeatherData } from '../services/weatherService';
+
+const WeatherIcon = ({ code, className }: { code: number, className?: string }) => {
+  if (code === 0) return <Sun className={className} />;
+  if (code >= 1 && code <= 3) return <CloudSun className={className} />;
+  if (code === 45 || code === 48) return <Cloud className={className} />;
+  if (code >= 51 && code <= 55) return <CloudDrizzle className={className} />;
+  if (code >= 61 && code <= 65) return <CloudRain className={className} />;
+  if (code >= 71 && code <= 75) return <Snowflake className={className} />;
+  if (code >= 80 && code <= 82) return <CloudRain className={className} />;
+  if (code >= 95) return <CloudLightning className={className} />;
+  return <Cloud className={className} />;
+};
 
 export default function Converter() {
   const [input, setInput] = useState('');
@@ -13,6 +26,7 @@ export default function Converter() {
   const { use24HourFormat, language, addFavorite, favorites } = useAppStore();
   const t = translations[language];
   const suggestionRef = useRef<HTMLDivElement>(null);
+  const [weather, setWeather] = useState<WeatherData | null>(null);
 
   const [result, setResult] = useState<{
     sourceTime: DateTime;
@@ -20,6 +34,22 @@ export default function Converter() {
     germanTime: DateTime;
     isJustZone?: boolean;
   } | null>(null);
+
+  useEffect(() => {
+    if (result && !result.isJustZone) {
+      const city = result.sourceZone.split('/').pop()?.replace('_', ' ');
+      if (city) {
+        getWeather(city).then(setWeather);
+      }
+    } else if (result && result.isJustZone) {
+      const city = result.sourceZone.split('/').pop()?.replace('_', ' ');
+      if (city) {
+        getWeather(city).then(setWeather);
+      }
+    } else {
+      setWeather(null);
+    }
+  }, [result?.sourceZone]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -40,11 +70,23 @@ export default function Converter() {
 
     // Suggestions logic
     const normalizedInput = input.toLowerCase().trim();
-    const matches = Object.keys(tzMapping)
+    const allIANA = Intl.supportedValuesOf('timeZone');
+    
+    const mappingMatches = Object.keys(tzMapping)
       .filter(key => key.includes(normalizedInput))
-      .slice(0, 5);
-    setSuggestions(matches);
-    setShowSuggestions(matches.length > 0);
+      .map(key => ({ name: key, tz: tzMapping[key], type: 'mapping' }));
+
+    const ianaMatches = allIANA
+      .filter(tz => tz.toLowerCase().includes(normalizedInput))
+      .map(tz => ({ name: tz, tz, type: 'iana' }));
+
+    const combined = [...mappingMatches, ...ianaMatches];
+    
+    // Remove duplicates by timezone and slice
+    const unique = combined.filter((v, i, a) => a.findIndex(t => t.tz === v.tz) === i).slice(0, 8);
+    
+    setSuggestions(unique.map(u => u.name));
+    setShowSuggestions(unique.length > 0);
 
     // Universal Search Logic
     const extracted = extractTimeAndZone(input);
@@ -134,7 +176,7 @@ export default function Converter() {
                     <MapPin className="w-4 h-4 text-accent-color opacity-50 group-hover:opacity-100" />
                     <span className="text-sm font-bold capitalize text-text-primary">{s}</span>
                     <span className="ml-auto text-[10px] font-bold text-text-secondary uppercase tracking-widest opacity-50">
-                      {tzMapping[s].split('/').pop()?.replace('_', ' ')}
+                      {(tzMapping[s.toLowerCase()] || s).split('/').pop()?.replace('_', ' ')}
                     </span>
                   </button>
                 ))}
@@ -159,6 +201,12 @@ export default function Converter() {
                 <div className="flex items-center justify-center gap-2 text-text-secondary mb-3">
                   <MapPin className="w-4 h-4" />
                   <span className="text-xs font-bold uppercase tracking-widest">{result.sourceZone.split('/').pop()?.replace('_', ' ')}</span>
+                  {weather && (
+                    <div className="flex items-center gap-1.5 ml-2 pl-2 border-l border-text-secondary/20">
+                      <WeatherIcon code={weather.conditionCode} className="w-3.5 h-3.5 text-accent-color" />
+                      <span className="text-[10px] font-bold text-accent-color">{weather.temp}°C</span>
+                    </div>
+                  )}
                 </div>
                 <div className="text-4xl font-light tracking-tighter mb-2">
                   {formatTime(result.sourceTime, use24HourFormat)}

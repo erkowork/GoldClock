@@ -25,6 +25,7 @@ export const translations = {
     footer: "GoldClock © 2026 - Intelligenter Weltzeit-Konverter",
     themes: "Themes",
     language: "Sprache",
+    calendar: "Kalender",
   },
   en: {
     heroTitle: "What time is it in ",
@@ -52,5 +53,6 @@ export const translations = {
     footer: "GoldClock © 2026 - Intelligent World Time Converter",
     themes: "Themes",
     language: "Language",
+    calendar: "Calendar",
   }
 };

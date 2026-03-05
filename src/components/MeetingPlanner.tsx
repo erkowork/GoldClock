@@ -45,12 +45,14 @@ export default function MeetingPlanner() {
     const title = encodeURIComponent('Global Meeting');
     const start = time.toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'");
     const end = time.plus({ hours: 1 }).toUTC().toFormat("yyyyMMdd'T'HHmmss'Z'");
+    const body = encodeURIComponent(`Meeting scheduled via GoldClock in ${zone}`);
     
     if (type === 'google') {
-      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=Meeting%20scheduled%20via%20GoldClock%20in%20${zone}`;
+      return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${start}/${end}&details=${body}`;
     }
     if (type === 'outlook') {
-      return `https://outlook.live.com/calendar/0/deeplink/compose?subject=${title}&startdt=${time.toUTC().toISO()}&enddt=${time.plus({ hours: 1 }).toUTC().toISO()}&body=Meeting%20scheduled%20via%20GoldClock%20in%20${zone}`;
+      // More reliable Outlook Web deep link with compact date format
+      return `https://outlook.office.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${title}&startdt=${start}&enddt=${end}&body=${body}`;
     }
     // For Apple/ICS
     const icsContent = `BEGIN:VCALENDAR
@@ -96,14 +98,15 @@ END:VCALENDAR`;
         </div>
       </div>
 
-      <div className="glass-panel rounded-[2.5rem] overflow-hidden border-2 border-border-color shadow-2xl">
-        <div className="grid grid-cols-[1.5fr_1fr_1fr] gap-4 p-6 border-b border-border-color bg-bg-secondary/50 text-[10px] font-bold uppercase tracking-widest text-text-secondary">
+      <div className="glass-panel rounded-[2.5rem] border-2 border-border-color shadow-2xl">
+        <div className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 p-6 border-b border-border-color bg-bg-secondary/50 text-[10px] font-bold uppercase tracking-widest text-text-secondary rounded-t-[2.5rem]">
           <div className="flex items-center gap-2">
             <Globe className="w-3 h-3" />
             {t.location}
           </div>
           <div className="text-right">{t.localTime}</div>
           <div className="text-center">{t.status}</div>
+          <div className="text-center">{t.calendar || 'Calendar'}</div>
         </div>
         
         <div className="divide-y divide-border-color">
@@ -119,7 +122,7 @@ END:VCALENDAR`;
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: index * 0.05 }}
-                className="grid grid-cols-[1.5fr_1fr_1fr] gap-4 p-6 items-center hover:bg-accent-color/[0.02] transition-colors group"
+                className="grid grid-cols-[1.5fr_1fr_1fr_1fr] gap-4 p-6 items-center hover:bg-accent-color/[0.02] transition-colors group"
               >
                 <div className="flex flex-col">
                   <span className="text-lg font-bold text-text-primary group-hover:text-accent-color transition-colors">
@@ -139,31 +142,31 @@ END:VCALENDAR`;
                   </span>
                 </div>
                 
-                <div className="flex justify-center relative">
-                  <div className="flex items-center gap-3">
-                    <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border ${status.color} shadow-sm`}>
-                      {status.icon}
-                      {status.label}
-                    </div>
-                    
-                    <button 
-                      onClick={() => setActiveExport(activeExport === tz ? null : tz)}
-                      className="p-2 rounded-xl bg-bg-secondary border border-border-color hover:border-accent-color text-text-secondary hover:text-accent-color transition-all shadow-sm"
-                      title="Add to Calendar"
-                    >
-                      <Calendar className="w-4 h-4" />
-                    </button>
+                <div className="flex justify-center">
+                  <div className={`flex items-center gap-2 px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border ${status.color} shadow-sm`}>
+                    {status.icon}
+                    {status.label}
                   </div>
+                </div>
+
+                <div className="flex justify-center relative">
+                  <button 
+                    onClick={() => setActiveExport(activeExport === tz ? null : tz)}
+                    className="p-2 rounded-xl bg-bg-secondary border border-border-color hover:border-accent-color text-text-secondary hover:text-accent-color transition-all shadow-sm"
+                    title="Add to Calendar"
+                  >
+                    <Calendar className="w-4 h-4" />
+                  </button>
 
                   <AnimatePresence>
                     {activeExport === tz && (
                       <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                        initial={{ opacity: 0, scale: 0.9, y: -10 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 10 }}
-                        className="absolute bottom-full mb-3 right-0 bg-bg-secondary border border-border-color rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] p-3 z-50 flex flex-col gap-1.5 min-w-[180px]"
+                        exit={{ opacity: 0, scale: 0.9, y: -10 }}
+                        className="absolute top-full mt-3 right-0 bg-bg-secondary backdrop-blur-xl border-2 border-border-color rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.4)] p-3 z-50 flex flex-col gap-1.5 min-w-[200px]"
                       >
-                        <div className="text-[9px] font-black uppercase tracking-widest text-text-secondary mb-1 px-2 opacity-50">Export to</div>
+                        <div className="text-[9px] font-black uppercase tracking-widest text-text-secondary mb-1 px-2 opacity-70">Export to</div>
                         <a 
                           href={generateCalendarLink('google', timeInZone, tz)} 
                           target="_blank" 
@@ -180,7 +183,7 @@ END:VCALENDAR`;
                           className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider hover:bg-accent-color/10 text-text-primary rounded-xl transition-colors flex items-center gap-3 border border-transparent hover:border-accent-color/20"
                         >
                           <div className="w-2 h-2 rounded-full bg-[#0078D4]" />
-                          Outlook
+                          Outlook Web
                         </a>
                         <a 
                           href={generateCalendarLink('apple', timeInZone, tz)} 
@@ -188,7 +191,7 @@ END:VCALENDAR`;
                           className="px-4 py-2.5 text-[10px] font-bold uppercase tracking-wider hover:bg-accent-color/10 text-text-primary rounded-xl transition-colors flex items-center gap-3 border border-transparent hover:border-accent-color/20"
                         >
                           <div className="w-2 h-2 rounded-full bg-slate-400" />
-                          Apple / iCal
+                          Apple / iCal (.ics)
                         </a>
                       </motion.div>
                     )}
