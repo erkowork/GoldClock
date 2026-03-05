@@ -1,29 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowRight, Clock, MapPin, Globe2 } from 'lucide-react';
+import { Search, MapPin, ArrowRight, Clock } from 'lucide-react';
+import { extractTimeAndZone, parseDateTimeWithZone, getGermanTime, formatTime } from '../utils/timezone';
 import { useAppStore } from '../store/useAppStore';
-import { parseTimezoneInput, extractTimeAndZone, parseDateTimeWithZone, getGermanTime, formatTime } from '../utils/timezone';
 import { DateTime } from 'luxon';
 import { motion, AnimatePresence } from 'motion/react';
+import { translations } from '../utils/translations';
 
 export default function Converter() {
   const [input, setInput] = useState('');
+  const { use24HourFormat, language } = useAppStore();
+  const t = translations[language];
   const [result, setResult] = useState<{
     sourceTime: DateTime;
     sourceZone: string;
     germanTime: DateTime;
-    isSpecificTime: boolean;
   } | null>(null);
-  
-  const { use24HourFormat } = useAppStore();
-  const [currentTime, setCurrentTime] = useState(DateTime.local());
-
-  // Update current time every minute if no specific time is requested
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(DateTime.local());
-    }, 60000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     if (!input.trim()) {
@@ -31,16 +22,10 @@ export default function Converter() {
       return;
     }
 
-    // 1. Try extracting specific time + zone (e.g. "10:00 PST")
     const extracted = extractTimeAndZone(input);
     if (extracted) {
       const parsedDt = parseDateTimeWithZone(extracted.time, extracted.zone);
       if (parsedDt) {
-        // We have a specific time in a specific zone
-        // If the parsed time is in the past for today, we might want to assume today or tomorrow.
-        // For simplicity, we just use the parsed time for today.
-        
-        // Ensure the date is today in that timezone
         const nowInZone = DateTime.local().setZone(extracted.zone);
         const finalDt = parsedDt.set({ year: nowInZone.year, month: nowInZone.month, day: nowInZone.day });
         
@@ -48,113 +33,73 @@ export default function Converter() {
           sourceTime: finalDt,
           sourceZone: extracted.zone,
           germanTime: getGermanTime(finalDt),
-          isSpecificTime: true
         });
-        return;
       }
+    } else {
+      setResult(null);
     }
-
-    // 2. Try parsing just the timezone (e.g. "Paris", "UTC-5")
-    const zone = parseTimezoneInput(input);
-    if (zone) {
-      const sourceTime = currentTime.setZone(zone);
-      setResult({
-        sourceTime,
-        sourceZone: zone,
-        germanTime: getGermanTime(sourceTime),
-        isSpecificTime: false
-      });
-      return;
-    }
-
-    setResult(null);
-  }, [input, currentTime]);
+  }, [input]);
 
   return (
-    <div className="w-full max-w-2xl mx-auto mt-8 px-4">
-      {/* Search Input */}
+    <div className="w-full max-w-2xl mx-auto">
       <div className="relative group">
-        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-          <Search className="w-5 h-5 text-text-secondary group-focus-within:text-accent-color transition-colors" />
+        <div className="absolute -inset-1 bg-gradient-to-r from-accent-color/20 to-accent-color/10 rounded-[2rem] blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+        <div className="relative glass-panel rounded-[2rem] p-2 flex items-center gap-2 border-2 border-accent-color/20 focus-within:border-accent-color transition-all shadow-2xl">
+          <div className="pl-4">
+            <Search className="w-6 h-6 text-accent-color" />
+          </div>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={t.placeholder}
+            className="flex-1 bg-transparent border-none outline-none py-4 px-2 text-lg font-medium placeholder:text-text-secondary/50"
+          />
         </div>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="e.g. 'Paris', 'UTC-5', '10:00 PST', 'Meeting at 15:00 in Tokyo'"
-          className="w-full pl-12 pr-4 py-4 rounded-2xl bg-bg-secondary border-2 border-border-color focus:border-accent-color focus:ring-4 focus:ring-accent-color/20 outline-none transition-all text-lg shadow-sm"
-        />
       </div>
 
-      {/* Results Display */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         {result && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            className="mt-8 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-6 items-center"
+            exit={{ opacity: 0, y: 10 }}
+            className="mt-8 grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-6"
           >
             {/* Source Time */}
-            <div className="glass-panel p-6 rounded-3xl flex flex-col items-center text-center relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-text-secondary to-transparent opacity-20" />
-              <div className="flex items-center gap-2 text-text-secondary mb-2">
+            <div className="glass-panel p-8 rounded-[2rem] text-center relative overflow-hidden group">
+              <div className="absolute top-0 left-0 w-full h-1 bg-text-secondary/20" />
+              <div className="flex items-center justify-center gap-2 text-text-secondary mb-3">
                 <MapPin className="w-4 h-4" />
-                <span className="font-medium uppercase tracking-wider text-xs">{result.sourceZone.split('/').pop()?.replace('_', ' ')}</span>
+                <span className="text-xs font-bold uppercase tracking-widest">{result.sourceZone.split('/').pop()?.replace('_', ' ')}</span>
               </div>
-              <div className="text-5xl font-light tracking-tight mb-1">
+              <div className="text-4xl font-light tracking-tighter mb-2">
                 {formatTime(result.sourceTime, use24HourFormat)}
               </div>
-              <div className="text-sm text-text-secondary">
-                {result.sourceTime.toFormat('ccc, d MMM')}
-              </div>
-              <div className="mt-4 text-xs font-mono bg-bg-primary px-3 py-1 rounded-full border border-border-color">
-                {result.sourceTime.offsetNameShort} (UTC{result.sourceTime.toFormat('ZZ')})
+              <div className="text-xs text-text-secondary font-medium">
+                {result.sourceTime.setLocale(language).toFormat('cccc, d. MMMM')}
               </div>
             </div>
 
             {/* Arrow */}
-            <div className="hidden md:flex justify-center text-text-secondary/50">
-              <ArrowRight className="w-8 h-8" />
+            <div className="flex justify-center">
+              <div className="w-12 h-12 rounded-full bg-accent-color flex items-center justify-center text-white shadow-lg shadow-accent-color/30 rotate-90 md:rotate-0">
+                <ArrowRight className="w-6 h-6" />
+              </div>
             </div>
 
-            {/* German Time (Highlight) */}
-            <div className="glass-panel p-6 rounded-3xl flex flex-col items-center text-center relative overflow-hidden border-accent-color/50 shadow-[0_0_40px_rgba(212,175,55,0.15)]">
-              <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-accent-color to-transparent" />
-              <div className="flex items-center gap-2 text-accent-color mb-2">
-                <Globe2 className="w-4 h-4" />
-                <span className="font-medium uppercase tracking-wider text-xs">Germany (Berlin)</span>
+            {/* German Time */}
+            <div className="glass-panel p-8 rounded-[2rem] text-center border-2 border-accent-color relative overflow-hidden shadow-xl shadow-accent-color/5">
+              <div className="absolute top-0 left-0 w-full h-1 bg-accent-color" />
+              <div className="flex items-center justify-center gap-2 text-accent-color mb-3">
+                <Clock className="w-4 h-4" />
+                <span className="text-xs font-bold uppercase tracking-widest">{t.germany}</span>
               </div>
-              <div className="text-6xl font-semibold tracking-tighter mb-1 text-text-primary">
+              <div className="text-5xl font-bold tracking-tighter mb-2 text-accent-color">
                 {formatTime(result.germanTime, use24HourFormat)}
               </div>
-              <div className="text-sm text-text-secondary">
-                {result.germanTime.toFormat('ccc, d MMM')}
-              </div>
-              <div className="mt-4 text-xs font-mono bg-bg-primary px-3 py-1 rounded-full border border-border-color">
-                {result.germanTime.offsetNameShort} (UTC{result.germanTime.toFormat('ZZ')})
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Default German Time Display when no input */}
-      <AnimatePresence>
-        {!result && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="mt-12 text-center"
-          >
-            <div className="inline-flex flex-col items-center p-8 rounded-3xl glass-panel">
-              <div className="text-accent-color font-medium tracking-widest uppercase text-sm mb-4">Current Time in Germany</div>
-              <div className="text-7xl font-light tracking-tighter">
-                {formatTime(getGermanTime(currentTime), use24HourFormat)}
-              </div>
-              <div className="mt-4 text-text-secondary">
-                {getGermanTime(currentTime).toFormat('cccc, d MMMM yyyy')}
+              <div className="text-xs text-text-secondary font-medium">
+                {result.germanTime.setLocale(language).toFormat('cccc, d. MMMM')}
               </div>
             </div>
           </motion.div>
