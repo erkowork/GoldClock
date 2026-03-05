@@ -1,0 +1,5 @@
+{
+  "name": "GoldClock",
+  "description": "Intelligenter Weltzeit-Konverter mit visueller Weltkarte und automatischer Zeitzonenerkennung.",
+  "requestFramePermissions": []
+}
